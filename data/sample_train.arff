@@ -1,0 +1,12 @@
+%    Simple data for testing
+
+@relation simple
+@attribute 'A' { a, b}
+@attribute 'B' { x, y, z}
+@attribute 'class' { 0, 1 }
+@data
+
+a,x,0
+b,y,1
+b,z,1
+a,y,0
