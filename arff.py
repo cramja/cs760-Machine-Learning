@@ -62,7 +62,7 @@ def read_attribute_line(lnum, line, arffobj):
       continue
     mapped.append(attr)
   arffobj.header.append(attr_n)
-  arffobj.mapped_values.append(sorted(mapped))
+  arffobj.mapped_values.append(mapped)
 
 
 def read_arff(f):
