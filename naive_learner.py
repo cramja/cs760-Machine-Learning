@@ -91,12 +91,9 @@ def predict(cpt_tpl, arff):
     preds.append([i / tnumers for i in numers])
   return preds
 
-def main():
-  if(len(sys.argv) == 1):
-    print "useage: {} <train arff> <test arff>".format(sys.argv[0])
-    exit(0)
-  train_arff = arff.read_arff(sys.argv[1])
-  test_arff = arff.read_arff(sys.argv[2])
+def learn(trainfile, testfile):
+  train_arff = arff.read_arff(trainfile)
+  test_arff = arff.read_arff(testfile)
 
   cpt_tpl = create_cpts(train_arff)
 
@@ -123,6 +120,13 @@ def main():
       proba)
 
   print "\n{}".format(correct)
+
+def main():
+  if(len(sys.argv) == 1):
+    print "useage: {} <train arff> <test arff>".format(sys.argv[0])
+    exit(0)
+
+  learn(sys.argv[1], sys.argv[2])
 
 if __name__ == '__main__':
   main()

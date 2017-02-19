@@ -3,6 +3,7 @@
 import sys
 import arff
 import math
+from decimal import *
 
 DEBUG=False
 
@@ -62,12 +63,12 @@ class CPT:
     return (sum([v for idx, v in enumerate(self.tbl[c]) if (idx - a1) % self.nattr[1] == 0]) + 1.0) / (sum(self.tbl[c]) + self.nattr[1])
 
   def prob_c_given_a0a1(self, c, a0, a1):
-    cnt_given = 0.0
-    cnt_c = 0.0
+    cnt_given = Decimal(0.0)
+    cnt_c = Decimal(0.0)
     for i in range(self.nattr[2]):
-      cnt_given += self.tbl[i][a0 * self.nattr[1] + a1]
-      cnt_c += 0.0 if i != c else self.tbl[i][a0 * self.nattr[1] + a1]
-    return (cnt_c + 1.0) / (cnt_given + self.nattr[2])
+      cnt_given += Decimal(self.tbl[i][a0 * self.nattr[1] + a1])
+      cnt_c += Decimal(0.0) if i != c else Decimal(self.tbl[i][a0 * self.nattr[1] + a1])
+    return (cnt_c + Decimal(1.0)) / (cnt_given + self.nattr[2])
 
 
   def prob_a0a1c(self, a0, a1, c):
@@ -214,23 +215,19 @@ class TAN:
   def predict(self, ex):
     rel_proba = []
     for cls in range(2):
-      proba = (self.cnt_cls[cls] + 1.0) / (sum(self.cnt_cls) + 2.0)
+      proba = Decimal(self.cnt_cls[cls] + 1.0) / Decimal(sum(self.cnt_cls) + 2.0)
       for edge in self.mst.edges:
-        proba *= (edge.cpt.prob_c_given_a0a1(ex[edge.n1], cls, ex[edge.n0]))
-      proba *= (self.cnt_root[cls][ex[self.root_attr]] + 1.0) / (sum(self.cnt_root[cls]) + len(self.cnt_root[cls]))
+        proba *= edge.cpt.prob_c_given_a0a1(ex[edge.n1], cls, ex[edge.n0])
+      proba *= Decimal(self.cnt_root[cls][ex[self.root_attr]] + 1.0) / Decimal(sum(self.cnt_root[cls]) + len(self.cnt_root[cls]))
       rel_proba.append(proba)
     proba = [i/sum(rel_proba) for i in rel_proba]
     maxprob = max(proba)
     idxmax = proba.index(maxprob)
     return (idxmax, maxprob)
 
-def main():
-  if len(sys.argv) == 1:
-    print "useage: {} <train arff> <test arff>".format(sys.argv[0])
-    exit(0)
-
-  train_arff = arff.read_arff(sys.argv[1])
-  test_arff = arff.read_arff(sys.argv[2])
+def learn(trainfile, testfile):
+  train_arff = arff.read_arff(trainfile)
+  test_arff = arff.read_arff(testfile)
   cpts = create_cpts(train_arff)
 
   if DEBUG:
@@ -272,18 +269,17 @@ def main():
 
   # print tree structure
   print "{} class".format(train_arff.header[mst.edges[0].n0])
-  for a in xrange(1, len(train_arff.header) -1):
+  for a in xrange(1, len(train_arff.header) - 1):
     for edge in tan.mst.edges:
       if edge.n1 == a:
         print "{} {} class".format(train_arff.header[edge.n1], train_arff.header[edge.n0])
         break
-  # for edge in tan.mst.edges:
-  #   print "{} {} class".format(train_arff.header[edge.n1], train_arff.header[edge.n0])
+  print ""
 
   correct = 0
   for row in test_arff.data:
     cls, proba = tan.predict(row)
-    print "{} {} {:<.16}".format(
+    print "{} {} {:<.16f}".format(
       train_arff.mapped_values[-1][cls],
       train_arff.mapped_values[-1][row[-1]],
       proba)
@@ -291,8 +287,11 @@ def main():
 
   print "\n{}".format(correct)
 
-
-###
+def main():
+  if len(sys.argv) == 1:
+    print "useage: {} <train arff> <test arff>".format(sys.argv[0])
+    exit(0)
+  learn(sys.argv[1], sys.argv[2])
 
 if __name__ == '__main__':
   main()
