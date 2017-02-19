@@ -155,11 +155,11 @@ class Graph:
           srcE = me.n0 
           dstE = me.n1 
           if me.n1 in covered:
-            swap(srcE, dstE)
+            tmp = srcE; srcE = dstE; dstE = tmp;
           srce = e.n0
           dste = e.n1
           if e.n1 in covered:
-            swap(srce, dste)
+            tmp = srce; srce = dste; dste = tmp;
           if srcE > srce:
             me = e
           elif srcE == srce:
@@ -224,6 +224,16 @@ class TAN:
     maxprob = max(proba)
     idxmax = proba.index(maxprob)
     return (idxmax, maxprob)
+
+def learn_arff(train_arff, test_arff):
+  cpts = create_cpts(train_arff)
+  mst = graph_from_cpts(cpts, train_arff).prims()
+  tan = TAN(mst, train_arff)
+  correct = 0
+  for row in test_arff.data:
+    cls, proba = tan.predict(row)
+    correct += 1 if cls == row[-1] else 0
+  return correct
 
 def learn(trainfile, testfile):
   train_arff = arff.read_arff(trainfile)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import random
 
 def main():
   if(len(sys.argv) == 1):
@@ -28,6 +29,16 @@ class Arff:
     if attr == -1:
       return self.relation
     return self.header[attr]
+
+  def sample(self, n):
+    sampled = Arff()
+    sampled.relation =self.relation
+    sampled.header = self.header
+    sampled.mapped_values = self.mapped_values
+    idx_sample = range(len(self.data))
+    random.shuffle(idx_sample)
+    sampled.data = [self.data[i] for i in idx_sample[:n]]
+    return sampled
 
 
 def read_data_line(lnum, line, arffobj):

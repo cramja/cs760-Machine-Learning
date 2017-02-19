@@ -91,6 +91,16 @@ def predict(cpt_tpl, arff):
     preds.append([i / tnumers for i in numers])
   return preds
 
+def learn_arff(train_arff, test_arff):
+  cpt_tpl = create_cpts(train_arff)
+  preds = predict(cpt_tpl, test_arff)
+  correct = 0
+  for idx, pred in enumerate(preds):
+    proba = max(pred)
+    cls_pred = pred.index(proba)
+    correct += 1 if cls_pred == test_arff.data[idx][-1] else 0
+  return correct
+
 def learn(trainfile, testfile):
   train_arff = arff.read_arff(trainfile)
   test_arff = arff.read_arff(testfile)
