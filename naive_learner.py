@@ -108,7 +108,7 @@ def main():
 
   preds = predict(cpt_tpl, test_arff)
 
-  for attr in train_arff.header:
+  for attr in train_arff.header[:-1]:
     print "{} class".format(attr)
   print ""
 

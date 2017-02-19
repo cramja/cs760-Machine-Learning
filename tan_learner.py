@@ -7,46 +7,36 @@ import math
 DEBUG=False
 
 class CPT:
-  # a 2 attribute cpt
-
-  def __init__(self, arff, attr0, attr1):
+  # a 3 attribute cpt
+  def __init__(self, arff, attrs):
+    # attrs is a list of 3 attribute ids in the arff
     self.arff = arff
-    self.attr0 = attr0
-    self.attr1 = attr1
-    self.nattr0 = len(arff.mapped_values[attr0])
-    self.nattr1 = len(arff.mapped_values[attr1])
+    self.attr = attrs
+    self.nattr = [len(arff.mapped_values[attr]) for attr in self.attr]
     self.tbl = []
-    self.tobs = 0.0 #self.nattr0 * self.nattr1 * 2.0
-    for i in range(2):
-      self.tbl.append([0.0] * (self.nattr0 * self.nattr1))
+    self.tobs = 0.0
+    for i in range(self.nattr[-1]):
+      self.tbl.append([0.0] * (self.nattr[0] * self.nattr[1]))
 
   def __eq__(self, other):
-    return self.attr0 == other.attr0 and self.attr1 == other.attr1
+    return self.attr == other.attr
 
   def __hash__(self):
-    return hash(self.attr0 * 1000 + self.attr1)
+    return hash(self.attr[0] * 1e6 + self.attr[1] * 1e3 + self.attr[2])
 
   def __str__(self):
-    name_cls = self.arff.mapped_values[len(self.arff.mapped_values) - 1]
-    name_attr0 = self.arff.mapped_values[self.attr0]
-    name_attr1 = self.arff.mapped_values[self.attr1]
-    tpairs = self.nattr0 * self.nattr1
-    attr_str = "{:>5}|" * self.nattr0 * self.nattr1
+    name_attrs = [self.arff.mapped_values[a] for a in self.attr]
+    tpairs = self.nattr[0] * self.nattr[1]
+    attr_str = "{:>5}|" * self.nattr[0] * self.nattr[1]
     str_self = "{:<3}\\{:>5}|{}\n".format(
       "", 
-      self.arff.header[self.attr0][:5], 
-      # attr_str.format(
-      #     *[name_attr0[i/len(name_attr1)][:5] for i in range(tpairs)]))
-      attr_str.format(
-          *[i/self.nattr1 for i in range(tpairs)]))
+      self.attr[0],
+      attr_str.format(*[i/self.nattr[1] for i in range(tpairs)]))
     str_self += "{:<3}\\{:>5}|{}\n".format(
-      "cls", 
-      self.arff.header[self.attr1][:5], 
-      # attr_str.format(
-      #     *[name_attr1[i%len(name_attr1)][:5] for i in range(tpairs)]))
-      attr_str.format(
-          *[i%self.nattr1 for i in range(tpairs)]))
-    for i in range(2):
+      self.attr[2], 
+      self.attr[1],
+      attr_str.format(*[i%self.nattr[1] for i in range(tpairs)]))
+    for i in range(self.nattr[2]):
       str_self += "{:>9}|".format(i)
       for j in range(tpairs):
         str_self += "{:>5}|".format(self.tbl[i][j])
@@ -54,26 +44,35 @@ class CPT:
     return str_self
 
   def observe(self, row):
-    c = row[-1]
-    a = (row[self.attr0] * self.nattr1) + row[self.attr1]
+    c = row[self.attr[2]]
+    a = (row[self.attr[0]] * self.nattr[1]) + row[self.attr[1]]
     self.tbl[c][a] += 1.0
     self.tobs += 1.0
 
   def prob_a0a1_given_c(self, a0, a1, c):
     # prob(a0, a1 | c)
-    return (self.tbl[c][a0 * self.nattr1 + a1] + 1.0) / (sum(self.tbl[c]) + (self.nattr0 * self.nattr1))
+    return (self.tbl[c][a0 * self.nattr[1] + a1] + 1.0) / (sum(self.tbl[c]) + (self.nattr[0] * self.nattr[1]))
 
   def prob_a0_given_c(self, a0, c):
     # prob(a0 | c)
-    return (sum(self.tbl[c][a0 * self.nattr1 : (a0 + 1) * self.nattr1]) + 1.0) / (sum(self.tbl[c]) + self.nattr0)
+    return (sum(self.tbl[c][a0 * self.nattr[1] : (a0 + 1) * self.nattr[1]]) + 1.0) / (sum(self.tbl[c]) + self.nattr[0])
 
   def prob_a1_given_c(self, a1, c):
     # prob(a1 | c)
-    return (sum([v for idx, v in enumerate(self.tbl[c]) if (idx - a1) % self.nattr1 == 0]) + 1.0) / (sum(self.tbl[c]) + self.nattr1)
+    return (sum([v for idx, v in enumerate(self.tbl[c]) if (idx - a1) % self.nattr[1] == 0]) + 1.0) / (sum(self.tbl[c]) + self.nattr[1])
+
+  def prob_c_given_a0a1(self, c, a0, a1):
+    cnt_given = 0.0
+    cnt_c = 0.0
+    for i in range(self.nattr[2]):
+      cnt_given += self.tbl[i][a0 * self.nattr[1] + a1]
+      cnt_c += 0.0 if i != c else self.tbl[i][a0 * self.nattr[1] + a1]
+    return (cnt_c + 1.0) / (cnt_given + self.nattr[2])
+
 
   def prob_a0a1c(self, a0, a1, c):
     # prob(a0, a1, c)
-    return (self.tbl[c][a0 * self.nattr1 + a1] + 1.0) / (self.tobs + (2 * self.nattr1 * self.nattr0))
+    return (self.tbl[c][a0 * self.nattr[1] + a1] + 1.0) / (self.tobs + (self.nattr[2] * self.nattr[1] * self.nattr[0]))
 
 def create_cpts(arff):
   # create every combination of attribute pairs into a cpt
@@ -81,7 +80,7 @@ def create_cpts(arff):
   tattr = len(arff.header) - 1
   for i in range(tattr):
     for j in xrange(i + 1, tattr):
-      cpts[(i,j)] = CPT(arff, i, j)
+      cpts[(i,j)] = CPT(arff, [i,j,len(arff.header) - 1])
   for row in arff.data:
     for k, cpt in cpts.iteritems():
       cpt.observe(row)
@@ -91,9 +90,9 @@ def CMutualInfo(cpts, a0, a1):
   # conditional mutual information
   cpt = cpts[(a0, a1)]
   s = 0.0
-  for atr0 in range(cpt.nattr0):
-    for atr1 in range(cpt.nattr1):
-      for c in range(2):
+  for atr0 in range(cpt.nattr[0]):
+    for atr1 in range(cpt.nattr[1]):
+      for c in range(cpt.nattr[2]):
         numer = cpt.prob_a0a1_given_c(atr0, atr1, c)
         denom = cpt.prob_a0_given_c(atr0, c) * cpt.prob_a1_given_c(atr1, c)
         s += (cpt.prob_a0a1c(atr0, atr1, c) * math.log(numer/denom, 2))
@@ -112,6 +111,9 @@ class Edge:
       "->" if self.directed else "<->",
       self.n1,
       self.weight)
+
+  def __repr__(self):
+    return "({},{})".format(self.n0, self.n1)
 
 class Node:
   def __init__(self, attr):
@@ -165,9 +167,10 @@ class Graph:
 
       if me.n0 not in covered:
         covered.append(me.n0)
+        tmp = me.n0; me.n0 = me.n1; me.n1 = tmp;
       else:
         covered.append(me.n1)
-
+      me.directed = True
       maxEdges.append(me)
 
       frontier = []
@@ -191,62 +194,43 @@ def graph_from_cpts(cpts, arff):
       n1.edges.append(edges[-1])
   return Graph(edges, nodes)
 
-def ghetto_proba_a0a1_given_c(arff, a0, a0v, a1, a1v, cv):
-  total_c = 0.0
-  total_a0a1 = 0.0
-  for line in arff.data:
-    if line[-1] == cv:
-      total_c += 1.0
-      total_a0a1 += 1.0 if line[a0] == a0v and line[a1] == a1v else 0.0
-  # laplace
-  total_c += len(arff.mapped_values[a0]) * len(arff.mapped_values[a1])
-  total_a0a1 += 1
-  return total_a0a1 / total_c
+class TAN:
+  def __init__(self, mst, arff):
+    self.arff = arff
+    self.mst = mst
+    idx_cls = len(arff.header) - 1
+    self.cnt_cls = [0.0] * len(arff.mapped_values[idx_cls])
+    self.root_attr = self.mst.edges[0].n0
+    nroot_attr = len(arff.mapped_values[self.root_attr])
+    self.cnt_root = [[0.0]*nroot_attr, [0.0]*nroot_attr]
+    for e in self.mst.edges:
+      e.cpt = CPT(arff, [idx_cls, e.n0, e.n1])
+    for row in arff.data:
+      self.cnt_cls[row[-1]] += 1.0
+      self.cnt_root[row[-1]][row[self.root_attr]] += 1.0
+      for e in self.mst.edges:
+        e.cpt.observe(row)
 
-def ghetto_proba_a0a1c(arff, a0, a0v, a1, a1v, cv):
-  total = 0.0
-  total_a0a1c = 0.0
-  for line in arff.data:
-    total_a0a1c += (1.0 if line[a0] == a0v and line[a1] == a1v and line[-1] == cv else 0.0)
-    total += 1
-  # laplace
-  total += len(arff.mapped_values[a0]) * len(arff.mapped_values[a1]) * 2
-  total_a0a1c += 1
-  return total_a0a1c / total
-
-def ghetto_proba_a0_given_c(arff, a0, a0v, cv):
-  total_c = 0.0
-  total_a0 = 0.0
-  for line in arff.data:
-    if line[-1] == cv:
-      total_c += 1.0
-      total_a0 += 1.0 if line[a0] == a0v else 0.0
-  # laplace
-  total_c += len(arff.mapped_values[a0])
-  total_a0 += 1
-  return total_a0 / total_c
-
-def ghetto_cmi(arff, a0, a1):
-  na0 = len(arff.mapped_values[a0])
-  na1 = len(arff.mapped_values[a1])
-  s = 0.0
-  for i in range(na0):
-    for j in range(na1):
-      for c in range(2):
-        n = ghetto_proba_a0a1_given_c(arff,a0,i,a1,j,c)
-        d = ghetto_proba_a0_given_c(arff, a0, i, c) * ghetto_proba_a0_given_c(arff, a1, j, c)
-        s += (ghetto_proba_a0a1c(arff, a0, i, a1, j, c) * math.log(n/d,2.0))
-  return s
+  def predict(self, ex):
+    rel_proba = []
+    for cls in range(2):
+      proba = (self.cnt_cls[cls] + 1.0) / (sum(self.cnt_cls) + 2.0)
+      for edge in self.mst.edges:
+        proba *= (edge.cpt.prob_c_given_a0a1(ex[edge.n1], cls, ex[edge.n0]))
+      proba *= (self.cnt_root[cls][ex[self.root_attr]] + 1.0) / (sum(self.cnt_root[cls]) + len(self.cnt_root[cls]))
+      rel_proba.append(proba)
+    proba = [i/sum(rel_proba) for i in rel_proba]
+    maxprob = max(proba)
+    idxmax = proba.index(maxprob)
+    return (idxmax, maxprob)
 
 def main():
-  if(len(sys.argv) == 1):
+  if len(sys.argv) == 1:
     print "useage: {} <train arff> <test arff>".format(sys.argv[0])
     exit(0)
+
   train_arff = arff.read_arff(sys.argv[1])
   test_arff = arff.read_arff(sys.argv[2])
-
-  print train_arff.mapped_values
-
   cpts = create_cpts(train_arff)
 
   if DEBUG:
@@ -262,15 +246,53 @@ def main():
   mst = graph_from_cpts(cpts, train_arff).prims()
 
   if DEBUG:
-    print gms
+    print mst
     s = "["
-    for e in gm.edges:
+    for e in mst.edges:
       s += "{},".format((e.n0, e.n1))
     print "{}]".format(s)
 
-  
+  tan = TAN(mst, train_arff)
+
+  if DEBUG:
+    # print cpts like david page does
+    print mst.edges
+    for edge in tan.mst.edges:
+      print ""
+      cpt = edge.cpt
+      for c in range(cpt.nattr[2]):
+        for a0 in range(cpt.nattr[0]):
+          for a1 in range(cpt.nattr[1]):
+            print "Pr({}={} | {}={},{}={}) = {}".format(
+              cpt.attr[2], c,
+              cpt.attr[0], a0,
+              cpt.attr[1], a1, 
+              cpt.prob_c_given_a0a1(c, a0, a1))
 
 
+  # print tree structure
+  print "{} class".format(train_arff.header[mst.edges[0].n0])
+  for a in xrange(1, len(train_arff.header) -1):
+    for edge in tan.mst.edges:
+      if edge.n1 == a:
+        print "{} {} class".format(train_arff.header[edge.n1], train_arff.header[edge.n0])
+        break
+  # for edge in tan.mst.edges:
+  #   print "{} {} class".format(train_arff.header[edge.n1], train_arff.header[edge.n0])
+
+  correct = 0
+  for row in test_arff.data:
+    cls, proba = tan.predict(row)
+    print "{} {} {:<.16}".format(
+      train_arff.mapped_values[-1][cls],
+      train_arff.mapped_values[-1][row[-1]],
+      proba)
+    correct += 1 if cls == row[-1] else 0
+
+  print "\n{}".format(correct)
+
+
+###
 
 if __name__ == '__main__':
   main()
